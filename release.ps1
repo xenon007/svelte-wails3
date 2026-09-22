@@ -72,8 +72,13 @@ if ($Current) {
 Exec git push
 Exec git push origin $GitTag
 
-gh release view $GitTag *> $null
-if ($LASTEXITCODE -ne 0) {
+$PreviousErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "SilentlyContinue"
+& gh release view $GitTag *> $null
+$ReleaseExists = ($LASTEXITCODE -eq 0)
+$ErrorActionPreference = $PreviousErrorActionPreference
+
+if (-not $ReleaseExists) {
     Exec gh release create $GitTag --verify-tag --generate-notes --title $GitTag
 } else {
     Write-Host "GitHub Release $GitTag already exists; skipping." -ForegroundColor Yellow
