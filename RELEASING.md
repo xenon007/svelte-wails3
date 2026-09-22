@@ -5,6 +5,10 @@ Create a new package version, Git tag, npm publication and GitHub Release from a
 Examples:
 
 ```powershell
+# First publication when package.json already contains 0.1.0:
+.\release.ps1 -Current
+
+# Subsequent releases:
 .\release.ps1 patch
 .\release.ps1 minor
 .\release.ps1 major
