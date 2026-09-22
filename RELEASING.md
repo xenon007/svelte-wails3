@@ -1,14 +1,24 @@
 # Release helper
 
-Create a new package version, Git tag, npm publication and GitHub Release from a clean checkout.
+The script publishes npm first and only then pushes Git metadata, so a rejected npm publication does not create a new half-finished GitHub release.
 
-Examples:
+## First publication
+
+If `package.json` already contains the version you want:
 
 ```powershell
-# First publication when package.json already contains 0.1.0:
 .\release.ps1 -Current
+```
 
-# Subsequent releases:
+If npm requires a one-time password and the CLI does not prompt interactively:
+
+```powershell
+.\release.ps1 -Current -Otp 123456
+```
+
+## Subsequent releases
+
+```powershell
 .\release.ps1 patch
 .\release.ps1 minor
 .\release.ps1 major
@@ -16,16 +26,11 @@ Examples:
 .\release.ps1 prerelease -Tag next
 ```
 
-Or from cmd.exe:
-
-```cmd
-release.cmd patch
-```
-
 Requirements:
 
-- authenticated npm CLI (`npm login`)
-- authenticated GitHub CLI (`gh auth login`)
+- npm authenticated with `npm login`
+- npm publish authorization through account 2FA or an appropriate granular token
+- GitHub CLI authenticated with `gh auth login`
 - clean Git working tree
 
-The script runs `npm pack --dry-run` before changing the version. Then `npm version` creates the version commit and `vX.Y.Z` tag, the commit/tag are pushed, the package is published with public access, and a GitHub Release is created with generated notes.
+The script is retry-safe if the npm version or GitHub Release already exists.
