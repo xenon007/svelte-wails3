@@ -3,11 +3,7 @@ param(
     [ValidatePattern('^(patch|minor|major|prepatch|preminor|premajor|prerelease|\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?)$')]
     [string]$Version = "patch",
 
-    [string]$Tag = "latest",
-
     [switch]$Current,
-
-    [string]$Otp,
 
     [switch]$DryRun
 )
@@ -47,25 +43,10 @@ if ($Status) {
     throw "Working tree is not clean. Commit or stash changes before releasing."
 }
 
-Exec npm --version
-Exec gh --version
-
-if (-not $DryRun) {
-    npm whoami | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        throw "npm authentication failed. Run 'npm login' first."
-    }
-
-    gh auth status
-    if ($LASTEXITCODE -ne 0) {
-        throw "GitHub CLI authentication failed. Run 'gh auth login' first."
-    }
-}
-
 Exec npm pack --dry-run
+Exec gh auth status
 
 $PackageVersion = (node -p "require('./package.json').version").Trim()
-$PackageName = (node -p "require('./package.json').name").Trim()
 
 if (-not $Current) {
     Exec npm version $Version
@@ -77,7 +58,7 @@ if (-not $Current) {
 $GitTag = "v$PackageVersion"
 
 if ($DryRun) {
-    Write-Host "Dry run stops before publish/tag/push/release." -ForegroundColor Yellow
+    Write-Host "Dry run stops before tag/push/release." -ForegroundColor Yellow
     exit 0
 }
 
@@ -86,24 +67,6 @@ if ($Current) {
     if (-not $ExistingTag) {
         Exec git tag -a $GitTag -m $GitTag
     }
-}
-
-Write-Host ""
-Write-Host "Releasing $PackageName@$PackageVersion ($GitTag)" -ForegroundColor Green
-
-$Published = $false
-npm view "$PackageName@$PackageVersion" version --json *> $null
-if ($LASTEXITCODE -eq 0) {
-    $Published = $true
-    Write-Host "$PackageName@$PackageVersion is already present on npm; skipping publish." -ForegroundColor Yellow
-}
-
-if (-not $Published) {
-    $PublishArgs = @("publish", "--access", "public", "--tag", $Tag)
-    if ($Otp) {
-        $PublishArgs += @("--otp", $Otp)
-    }
-    Exec npm @PublishArgs
 }
 
 Exec git push
@@ -117,6 +80,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "Released $PackageName@$PackageVersion" -ForegroundColor Green
-Write-Host "npm: https://www.npmjs.com/package/$PackageName"
-Write-Host "GitHub tag/release: $GitTag"
+Write-Host "Release $GitTag pushed. GitHub Actions will publish npm using secrets.NPM_TOKEN." -ForegroundColor Green
