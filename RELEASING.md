@@ -1,6 +1,6 @@
 # Release helper
 
-The script publishes npm first and only then pushes Git metadata, so a rejected npm publication does not create a new half-finished GitHub release.
+Publishing to npm is performed by GitHub Actions using the repository secret `NPM_TOKEN`.
 
 ## First publication
 
@@ -10,12 +10,6 @@ If `package.json` already contains the version you want:
 .\release.ps1 -Current
 ```
 
-If npm requires a one-time password and the CLI does not prompt interactively:
-
-```powershell
-.\release.ps1 -Current -Otp 123456
-```
-
 ## Subsequent releases
 
 ```powershell
@@ -23,14 +17,14 @@ If npm requires a one-time password and the CLI does not prompt interactively:
 .\release.ps1 minor
 .\release.ps1 major
 .\release.ps1 0.2.0
-.\release.ps1 prerelease -Tag next
 ```
 
-Requirements:
+The script creates/pushes the Git tag and GitHub Release. The `.github/workflows/publish-npm.yml` workflow publishes the tagged version to npm.
 
-- npm authenticated with `npm login`
-- npm publish authorization through account 2FA or an appropriate granular token
-- GitHub CLI authenticated with `gh auth login`
-- clean Git working tree
+If a release must be redone before npm publication:
 
-The script is retry-safe if the npm version or GitHub Release already exists.
+```powershell
+gh release delete v0.1.0 --yes
+git push origin :refs/tags/v0.1.0
+git tag -d v0.1.0
+```
