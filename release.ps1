@@ -5,6 +5,8 @@ param(
 
     [string]$Tag = "latest",
 
+    [switch]$Current,
+
     [switch]$DryRun
 )
 
@@ -19,7 +21,13 @@ function Exec {
         return
     }
 
-    & $Command[0] $Command[1..($Command.Length - 1)]
+    $Exe = $Command[0]
+    $Args = @()
+    if ($Command.Length -gt 1) {
+        $Args = $Command[1..($Command.Length - 1)]
+    }
+
+    & $Exe @Args
 
     if ($LASTEXITCODE -ne 0) {
         throw "Command failed with exit code $LASTEXITCODE: $($Command -join ' ')"
@@ -58,17 +66,30 @@ if (-not $DryRun) {
 # Catch package errors before creating a version commit/tag.
 Exec npm pack --dry-run
 
-# npm version updates package.json, creates a commit and annotated git tag vX.Y.Z.
-Exec npm version $Version
+$PackageVersion = (node -p "require('./package.json').version").Trim()
+$PackageName = (node -p "require('./package.json').name").Trim()
+
+if (-not $Current) {
+    # npm version updates package.json, creates a commit and annotated git tag vX.Y.Z.
+    Exec npm version $Version
+    if (-not $DryRun) {
+        $PackageVersion = (node -p "require('./package.json').version").Trim()
+    }
+}
+
+$GitTag = "v$PackageVersion"
 
 if ($DryRun) {
-    Write-Host "Dry run stops before push/publish/release because no real version/tag was created." -ForegroundColor Yellow
+    Write-Host "Dry run stops before tag/push/publish/release." -ForegroundColor Yellow
     exit 0
 }
 
-$PackageVersion = (node -p "require('./package.json').version").Trim()
-$PackageName = (node -p "require('./package.json').name").Trim()
-$GitTag = "v$PackageVersion"
+if ($Current) {
+    $ExistingTag = git tag --list $GitTag
+    if (-not $ExistingTag) {
+        Exec git tag -a $GitTag -m $GitTag
+    }
+}
 
 Write-Host ""
 Write-Host "Publishing $PackageName@$PackageVersion ($GitTag)" -ForegroundColor Green
